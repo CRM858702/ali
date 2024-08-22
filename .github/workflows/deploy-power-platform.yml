@@ -2,9 +2,18 @@ name: Power Platform Solution Deployment
 
 on:
   push:
-    tags:
-      - 'v*.*.*'  # Triggers on version tags like v1.0.0
+    #tags:
+      #- 'v*.*.*'  # Triggers on version tags like v1.0.0
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - development
+          - testing
+          - production
 
 jobs:
   deploy-to-test:
