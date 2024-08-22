@@ -26,14 +26,14 @@ jobs:
 
     - name: Export Solution from Dev Environment
       run: |
-        pac solution export --path $(Build.ArtifactStagingDirectory)/Solutions/ --name Solution2 --target managed --overwrite
+        pac solution export --path ./.github/workflows/ --name Solution2 --target managed --overwrite
 
     - name: Authenticate with Power Platform (Test Environment)
       run: pac auth create --url ${{ secrets.TEST_POWER_PLATFORM_URL }} --tenant ${{ secrets.AZURE_TENANT_ID }} --client-id ${{ secrets.AZURE_CLIENT_ID }} --client-secret ${{ secrets.AZURE_CLIENT_SECRET }}
 
     - name: Import Solution into Test Environment
       run: |
-        pac solution import --path $(Build.ArtifactStagingDirectory)/Solutions/Solution2.zip --overwrite-same-version --activate-plugins
+        pac solution import --path ./.github/workflows/Solution2.zip --overwrite-same-version --activate-plugins
 
     - name: Publish All Customizations in Test
       run: pac solution publish
