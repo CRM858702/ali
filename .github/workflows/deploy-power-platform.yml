@@ -1,0 +1,86 @@
+name: Power Platform Solution Deployment
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v1.0.0
+  workflow_dispatch:
+
+jobs:
+  deploy-to-test:
+    runs-on: windows-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '14.x'
+
+    - name: Install Power Platform CLI
+      run: npm install -g pac-cli
+
+    - name: Authenticate with Power Platform (Dev Environment)
+      run: pac auth create --url ${{ secrets.DEV_POWER_PLATFORM_URL }} --tenant ${{ secrets.AZURE_TENANT_ID }} --client-id ${{ secrets.AZURE_CLIENT_ID }} --client-secret ${{ secrets.AZURE_CLIENT_SECRET }}
+
+    - name: Export Solution from Dev Environment
+      run: |
+        pac solution export --path $(Build.ArtifactStagingDirectory)/Solutions/ --name YourSolutionName --target managed --overwrite
+
+    - name: Authenticate with Power Platform (Test Environment)
+      run: pac auth create --url ${{ secrets.TEST_POWER_PLATFORM_URL }} --tenant ${{ secrets.AZURE_TENANT_ID }} --client-id ${{ secrets.AZURE_CLIENT_ID }} --client-secret ${{ secrets.AZURE_CLIENT_SECRET }}
+
+    - name: Import Solution into Test Environment
+      run: |
+        pac solution import --path $(Build.ArtifactStagingDirectory)/Solutions/YourSolutionName.zip --overwrite-same-version --activate-plugins
+
+    - name: Publish All Customizations in Test
+      run: pac solution publish
+
+    - name: Notify Test Deployment Success
+      uses: slackapi/slack-github-action@v1.23.0
+      with:
+        slack-message: "Deployment to Test environment was successful for tag ${{ github.ref }}"
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  deploy-to-prod:
+    needs: deploy-to-test
+    runs-on: windows-latest
+    if: github.ref == 'refs/tags/v*.*.*'  # Only runs for version tags
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '14.x'
+
+    - name: Install Power Platform CLI
+      run: npm install -g pac-cli
+
+    - name: Authenticate with Power Platform (Test Environment)
+      run: pac auth create --url ${{ secrets.TEST_POWER_PLATFORM_URL }} --tenant ${{ secrets.AZURE_TENANT_ID }} --client-id ${{ secrets.AZURE_CLIENT_ID }} --client-secret ${{ secrets.AZURE_CLIENT_SECRET }}
+
+    - name: Export Solution from Test Environment
+      run: |
+        pac solution export --path $(Build.ArtifactStagingDirectory)/Solutions/ --name YourSolutionName --target managed --overwrite
+
+    - name: Authenticate with Power Platform (Prod Environment)
+      run: pac auth create --url ${{ secrets.PROD_POWER_PLATFORM_URL }} --tenant ${{ secrets.AZURE_TENANT_ID }} --client-id ${{ secrets.AZURE_CLIENT_ID }} --client-secret ${{ secrets.AZURE_CLIENT_SECRET }}
+
+    - name: Import Solution into Prod Environment
+      run: |
+        pac solution import --path $(Build.ArtifactStagingDirectory)/Solutions/YourSolutionName.zip --overwrite-same-version --activate-plugins
+
+    - name: Publish All Customizations in Prod
+      run: pac solution publish
+
+    - name: Notify Prod Deployment Success
+      uses: slackapi/slack-github-action@v1.23.0
+      with:
+        slack-message: "Deployment to Production environment was successful for tag ${{ github.ref }}"
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
