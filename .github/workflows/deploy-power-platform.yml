@@ -14,6 +14,10 @@ on:
           - development
           - testing
           - production
+      solution_name:
+        description: 'name of the solution to worked on from Power Platform'
+        required: true
+        default: Solution1
 
 jobs:
   deploy-to-test:
