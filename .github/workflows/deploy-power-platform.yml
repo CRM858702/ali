@@ -58,6 +58,20 @@ jobs:
       with:
         node-version: '14.x'
 
+    - name: Create Pull Request for Approval
+      uses: peter-evans/create-pull-request@v5
+      with:
+        commit-message: "Prepare deployment of ${{ github.event.inputs.solution_name }} to Production"
+        title: "Approve deployment of ${{ github.event.inputs.solution_name }} to Production"
+        body: "Please approve the deployment of the solution ${{ github.event.inputs.solution_name }} to Production."
+        branch: deployment-approval/${{ github.event.inputs.solution_name }}
+
+    - name: Wait for Pull Request Approval
+      uses: ahmadnassri/action-dependabot-merge@v2
+      with:
+        pr_number: ${{ steps.create-pull-request.outputs.pull-request-number }}
+        commit_message: "Deployment approved for ${{ github.event.inputs.solution_name }}"
+
     - name: Install Power Platform CLI
       run: npm install -g pac-cli
 
