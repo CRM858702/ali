@@ -1,23 +1,11 @@
 name: Power Platform Solution Deployment
 
 on:
-  push:
-    #tags:
-      #- 'v*.*.*'  # Triggers on version tags like v1.0.0
   workflow_dispatch:
     inputs:
-      environment:
-        description: 'Target environment'
-        required: true
-        type: choice
-        options:
-          - development
-          - testing
-          - production
       solution_name:
-        description: 'name of the solution to worked on from Power Platform'
+        description: 'Enter the solution name'
         required: true
-        default: Solution1
 
 jobs:
   deploy-to-test:
@@ -39,14 +27,14 @@ jobs:
 
     - name: Export Solution from Dev Environment
       run: |
-        pac solution export --path ./.github/workflows/ --name Solution2 --target managed --overwrite
+        pac solution export --path ./.github/workflows/ --name ${{ github.event.inputs.solution_name }} --target managed --overwrite
 
     - name: Authenticate with Power Platform (Test Environment)
       run: pac auth create --url ${{ secrets.TEST_POWER_PLATFORM_URL }} --tenant ${{ secrets.AZURE_TENANT_ID }} --client-id ${{ secrets.AZURE_CLIENT_ID }} --client-secret ${{ secrets.AZURE_CLIENT_SECRET }}
 
     - name: Import Solution into Test Environment
       run: |
-        pac solution import --path ./.github/workflows/Solution2.zip --overwrite-same-version --activate-plugins
+        pac solution import --path ./.github/workflows/${{ github.event.inputs.solution_name }}.zip --overwrite-same-version --activate-plugins
 
     - name: Publish All Customizations in Test
       run: pac solution publish
@@ -54,14 +42,13 @@ jobs:
     - name: Notify Test Deployment Success
       uses: slackapi/slack-github-action@v1.23.0
       with:
-        slack-message: "Deployment to Test environment was successful for tag ${{ github.ref }}"
+        slack-message: "Deployment to Test environment was successful for solution ${{ github.event.inputs.solution_name }}"
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
   deploy-to-prod:
     needs: deploy-to-test
     runs-on: windows-latest
-    if: github.ref == 'refs/tags/v*.*.*'  # Only runs for version tags
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
@@ -79,14 +66,14 @@ jobs:
 
     - name: Export Solution from Test Environment
       run: |
-        pac solution export --path $(Build.ArtifactStagingDirectory)/Solutions/ --name YourSolutionName --target managed --overwrite
+        pac solution export --path ./.github/workflows/ --name ${{ github.event.inputs.solution_name }} --target managed --overwrite
 
     - name: Authenticate with Power Platform (Prod Environment)
       run: pac auth create --url ${{ secrets.PROD_POWER_PLATFORM_URL }} --tenant ${{ secrets.AZURE_TENANT_ID }} --client-id ${{ secrets.AZURE_CLIENT_ID }} --client-secret ${{ secrets.AZURE_CLIENT_SECRET }}
 
     - name: Import Solution into Prod Environment
       run: |
-        pac solution import --path $(Build.ArtifactStagingDirectory)/Solutions/YourSolutionName.zip --overwrite-same-version --activate-plugins
+        pac solution import --path ./.github/workflows/${{ github.event.inputs.solution_name }}.zip --overwrite-same-version --activate-plugins
 
     - name: Publish All Customizations in Prod
       run: pac solution publish
@@ -94,6 +81,6 @@ jobs:
     - name: Notify Prod Deployment Success
       uses: slackapi/slack-github-action@v1.23.0
       with:
-        slack-message: "Deployment to Production environment was successful for tag ${{ github.ref }}"
+        slack-message: "Deployment to Production environment was successful for solution ${{ github.event.inputs.solution_name }}"
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
