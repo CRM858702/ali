@@ -3,10 +3,12 @@ name: Release Power Platform Solution
 on:
   workflow_dispatch:
     inputs:
+      # Change this value
       solution_name:
-        description: 'name of the solution to work on from Power Platform'
+        description: 'name of the solution to worked on from Power Platform'
         required: true
         default: Solution1
+       #Do Not change these values
       solution_exported_folder:
         description: 'folder name for staging the exported solution *do not change*'
         required: true
@@ -16,9 +18,9 @@ on:
         required: true
         default: out/solutions/
       solution_target_folder: 
-        description: 'folder name to be created and checked in *do not change*'
-        required: true
-        default: solutions/
+       description: 'folder name to be created and checked in *do not change*'
+       required: true
+       default: solutions/
 
 jobs:
   release:
@@ -28,28 +30,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install Power Platform CLI
-        run: |
-          Install-Module -Name Microsoft.PowerApps.Administration.PowerShell -Force -AllowClobber
-          Install-Module -Name Microsoft.PowerApps.PowerShell -Force -AllowClobber
-
       - name: Authenticate with Power Platform
-        run: |
-          $secureClientSecret = ConvertTo-SecureString ${{ secrets.AZURE_CLIENT_SECRET }} -AsPlainText -Force
-          $credentials = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList ${{ secrets.AZURE_CLIENT_ID }}, $secureClientSecret
-          Add-PowerAppsAccount -TenantId ${{ secrets.AZURE_TENANT_ID }} -Credentials $credentials
+        run: pac auth create --url https://dev-aliii.crm.dynamics.com/ --name "DEV_POWER_PLATFORM_URL" --client-id ${{ secrets.AZURE_CLIENT_ID }} --client-secret ${{ secrets.AZURE_CLIENT_SECRET }} --tenant-id ${{ secrets.AZURE_TENANT_ID }}
 
       - name: Export Solution as Managed
         run: |
-          $solutionName = "${{ github.event.inputs.solution_name }}"
-          $targetFolder = "${{ github.event.inputs.solution_target_folder }}"
-          Export-PowerAppSolution -EnvironmentName 'Default-Environment' -SolutionName $solutionName -SolutionFilePath "$targetFolder\managed.zip" -Asynchronous -Managed
+          pac solution export --path "${{ github.event.inputs.solution_target_folder }}/managed.zip" --name "${{ github.event.inputs.solution_name }}" --managed --async --max-async-wait-time 60
 
       - name: Upload Managed Solution
         uses: actions/upload-artifact@v3
         with:
           name: managed-solution
-          path: "${{ github.event.inputs.solution_target_folder }}\managed.zip"
+          path: "${{ github.event.inputs.solution_target_folder }}/managed.zip"
 
       - name: Trigger Test Environment Deployment
         uses: actions/github-script@v6
