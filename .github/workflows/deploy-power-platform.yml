@@ -1,100 +1,42 @@
-name: Power Platform Solution Deployment
+name: Build and Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      solution_name:
-        description: 'Enter the solution name'
-        required: true
+  push:
+    branches:
+      - main  # Trigger on push to the main branch
 
 jobs:
-  deploy-to-test:
-    runs-on: windows-latest
+  build:
+    runs-on: ubuntu-latest
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '14.x'
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '6.x'
 
-    - name: Install Power Platform CLI
-      run: npm install -g pac-cli
+      - name: Install dependencies
+        run: dotnet restore
 
-    - name: Authenticate with Power Platform (Dev Environment)
-      run: pac auth create --url ${{ secrets.DEV_POWER_PLATFORM_URL }} --tenant ${{ secrets.AZURE_TENANT_ID }} --client-id ${{ secrets.AZURE_CLIENT_ID }} --client-secret ${{ secrets.AZURE_CLIENT_SECRET }}
+      - name: Build solution
+        run: dotnet build --no-restore --configuration Release
 
-    - name: Export Solution from Dev Environment
-      run: |
-        pac solution export --path ./.github/workflows/ --name ${{ github.event.inputs.solution_name }} --target managed --overwrite
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Release ${{ github.run_number }}
+          draft: false
+          prerelease: false
 
-    - name: Authenticate with Power Platform (Test Environment)
-      run: pac auth create --url ${{ secrets.TEST_POWER_PLATFORM_URL }} --tenant ${{ secrets.AZURE_TENANT_ID }} --client-id ${{ secrets.AZURE_CLIENT_ID }} --client-secret ${{ secrets.AZURE_CLIENT_SECRET }}
-
-    - name: Import Solution into Test Environment
-      run: |
-        pac solution import --path ./.github/workflows/${{ github.event.inputs.solution_name }}.zip --overwrite-same-version --activate-plugins
-
-    - name: Publish All Customizations in Test
-      run: pac solution publish
-
-    - name: Notify Test Deployment Success
-      uses: slackapi/slack-github-action@v1.23.0
-      with:
-        slack-message: "Deployment to Test environment was successful for solution ${{ github.event.inputs.solution_name }}"
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-
-  deploy-to-prod:
-    needs: deploy-to-test
-    runs-on: windows-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '14.x'
-
-    - name: Create Pull Request for Approval
-      uses: peter-evans/create-pull-request@v5
-      with:
-        commit-message: "Prepare deployment of ${{ github.event.inputs.solution_name }} to Production"
-        title: "Approve deployment of ${{ github.event.inputs.solution_name }} to Production"
-        body: "Please approve the deployment of the solution ${{ github.event.inputs.solution_name }} to Production."
-        branch: deployment-approval/${{ github.event.inputs.solution_name }}
-
-    - name: Wait for Pull Request Approval
-      uses: ahmadnassri/action-dependabot-merge@v2
-      with:
-        pr_number: ${{ steps.create-pull-request.outputs.pull-request-number }}
-        commit_message: "Deployment approved for ${{ github.event.inputs.solution_name }}"
-
-    - name: Install Power Platform CLI
-      run: npm install -g pac-cli
-
-    - name: Authenticate with Power Platform (Test Environment)
-      run: pac auth create --url ${{ secrets.TEST_POWER_PLATFORM_URL }} --tenant ${{ secrets.AZURE_TENANT_ID }} --client-id ${{ secrets.AZURE_CLIENT_ID }} --client-secret ${{ secrets.AZURE_CLIENT_SECRET }}
-
-    - name: Export Solution from Test Environment
-      run: |
-        pac solution export --path ./.github/workflows/ --name ${{ github.event.inputs.solution_name }} --target managed --overwrite
-
-    - name: Authenticate with Power Platform (Prod Environment)
-      run: pac auth create --url ${{ secrets.PROD_POWER_PLATFORM_URL }} --tenant ${{ secrets.AZURE_TENANT_ID }} --client-id ${{ secrets.AZURE_CLIENT_ID }} --client-secret ${{ secrets.AZURE_CLIENT_SECRET }}
-
-    - name: Import Solution into Prod Environment
-      run: |
-        pac solution import --path ./.github/workflows/${{ github.event.inputs.solution_name }}.zip --overwrite-same-version --activate-plugins
-
-    - name: Publish All Customizations in Prod
-      run: pac solution publish
-
-    - name: Notify Prod Deployment Success
-      uses: slackapi/slack-github-action@v1.23.0
-      with:
-        slack-message: "Deployment to Production environment was successful for solution ${{ github.event.inputs.solution_name }}"
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifacts
+          path: path/to/artifacts  # Replace with your build artifacts path
