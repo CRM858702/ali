@@ -36,7 +36,7 @@ jobs:
           node-version: '16.x'
 
       - name: Install Power Platform CLI
-        run: npm install -g n
+        run: npm install -g pac
       
       - name: Authenticate with Power Platform
         run: pac auth create --url https://dev-aliii.crm.dynamics.com/ --name "DEV_POWER_PLATFORM_URL" --client-id ${{ secrets.AZURE_CLIENT_ID }} --client-secret ${{ secrets.AZURE_CLIENT_SECRET }} --tenant-id ${{ secrets.AZURE_TENANT_ID }}
