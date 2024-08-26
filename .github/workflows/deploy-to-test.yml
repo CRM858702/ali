@@ -1,27 +1,45 @@
-name: Deploy to Test
+name: Deploy to Test Environment
 
 on:
-  workflow_run:
-    workflows: ["Build and Release"]
-    types:
-      - completed
+  workflow_dispatch:
+    inputs:
+      solution_name:
+        description: 'The name of the Power Platform solution'
+        required: true
+      solution_target_folder:
+        description: 'The target folder for the managed solution'
+        required: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Download Artifacts
+      - name: Download Managed Solution
         uses: actions/download-artifact@v3
         with:
-          name: solution-artifacts
+          name: managed-solution
 
       - name: Authenticate with Power Platform
-        run: pac auth create --url https://your-test-env.crm.dynamics.com --name "TestEnv" --client-id ${{ secrets.CLIENT_ID }} --client-secret ${{ secrets.CLIENT_SECRET }} --tenant-id ${{ secrets.TENANT_ID }}
+        run: pac auth create --url https://dvm-aliii.crm.dynamics.com/ --name "TEST_POWER_PLATFORM_URL" --client-id ${{ secrets.AZURE_CLIENT_ID }} --client-secret ${{ secrets.AZURE_CLIENT_SECRET }} --tenant-id ${{ secrets.AZURE_TENANT_ID }}
 
       - name: Import Solution to Test Environment
-        run: pac solution import --path "path/to/solution.zip" --async --max-async-wait-time 60
+        run: pac solution import --path "${{ github.event.inputs.solution_target_folder }}/managed.zip" --async --max-async-wait-time 60
+
+      - name: Trigger Production Deployment
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const dispatch = await github.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'deploy-to-prod.yml',
+              ref: context.ref,
+              inputs: {
+                solution_name: "${{ github.event.inputs.solution_name }}",
+                solution_target_folder: "${{ github.event.inputs.solution_target_folder }}"
+              }
+            });
