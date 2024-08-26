@@ -1,10 +1,14 @@
-name: Deploy to Production
+name: Deploy to Production Environment
 
 on:
-  workflow_run:
-    workflows: ["Deploy to Test"]
-    types:
-      - completed
+  workflow_dispatch:
+    inputs:
+      solution_name:
+        description: 'The name of the Power Platform solution'
+        required: true
+      solution_target_folder:
+        description: 'The target folder for the managed solution'
+        required: true
 
 jobs:
   approve:
@@ -12,27 +16,23 @@ jobs:
     steps:
       - name: Request approval
         run: echo "Waiting for approval to deploy to Production."
-        # Send a notification or pause for approval
+        # Send a notification or use a manual approval step here
 
   deploy:
     runs-on: ubuntu-latest
     needs: approve
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    environment:
-      name: production
-      url: https://your-production-env-url
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Download Artifacts
+      - name: Download Managed Solution
         uses: actions/download-artifact@v3
         with:
-          name: solution-artifacts
+          name: managed-solution
 
       - name: Authenticate with Power Platform
-        run: pac auth create --url https://your-prod-env.crm.dynamics.com --name "ProdEnv" --client-id ${{ secrets.CLIENT_ID }} --client-secret ${{ secrets.CLIENT_SECRET }} --tenant-id ${{ secrets.TENANT_ID }}
+        run: pac auth create --url https://your-prod-env.crm.dynamics.com --name "ProdEnv" --client-id ${{ secrets.AZURE_CLIENT_ID }} --client-secret ${{ secrets.AZURE_CLIENT_SECRET }} --tenant-id ${{ secrets.AZURE_TENANT_ID }}
 
       - name: Import Solution to Production Environment
-        run: pac solution import --path "path/to/solution.zip" --async --max-async-wait-time 60
+        run: pac solution import --path "${{ github.event.inputs.solution_target_folder }}/managed.zip" --async --max-async-wait-time 60
