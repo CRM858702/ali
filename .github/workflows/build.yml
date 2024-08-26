@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Checkout code
@@ -22,10 +22,10 @@ jobs:
         run: npm install -g pac
 
       - name: Authenticate with Power Platform
-        run: pac auth create --url https://your-org.crm.dynamics.com --name "OrgName" --client-id ${{ secrets.CLIENT_ID }} --client-secret ${{ secrets.CLIENT_SECRET }} --tenant-id ${{ secrets.TENANT_ID }}
+        run: pac auth create --url https://your-org.crm.dynamics.com --name "DEV_POWER_PLATFORM_URL" --client-id ${{ secrets.AZURE_CLIENT_ID }} --client-secret ${{ secrets.AZURE_CLIENT_SECRET }} --tenant-id ${{ secrets.AZURE_TENANT_ID }}
 
       - name: Import Solution
-        run: pac solution import --path "path/to/your/solution.zip" --async --max-async-wait-time 60
+        run: pac solution import --path "output/solution.zip" --async --max-async-wait-time 60
 
       - name: Create Release
         id: create_release
@@ -42,4 +42,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: solution-artifacts
-          path: path/to/solution.zip  # Replace with your solution file path
+          path: output/solution.zip  # Replace with your solution file path
