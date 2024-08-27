@@ -70,26 +70,6 @@ jobs:
           solution-file: ${{ inputs.solution_outbound_folder }}${{ inputs.solution_name }}.zip
           solution-type: Unmanaged    
 
-      - name: Increment solution version
-        run: |
-          # Fetch the current solution version
-          current_version=$(pwsh -Command "Get-Content '${{ inputs.solution_outbound_folder }}${{ inputs.solution_name }}\\Solution.xml' | Select-String -Pattern '<Version>(.*)</Version>' | ForEach-Object { $_.Matches.Groups[1].Value }")
-          
-          # Split the version into components
-          IFS='.' read -r -a version_parts <<< "$current_version"
-
-          # Increment the revision number (last part of the version)
-          revision_index=$((${#version_parts[@]}-1))
-          version_parts[$revision_index]=$((version_parts[$revision_index]+1))
-
-          # Join the version parts back together
-          new_version=$(IFS='.'; echo "${version_parts[*]}")
-
-          echo "New version: $new_version"
-
-          # Update the version in the solution XML
-          pwsh -Command "(Get-Content '${{ inputs.solution_outbound_folder }}${{ inputs.solution_name }}\\Solution.xml') -replace '<Version>.*</Version>', '<Version>$new_version</Version>' | Set-Content '${{ inputs.solution_outbound_folder }}${{ inputs.solution_name }}\\Solution.xml'"
-
       - name: Export solution as managed
         uses: microsoft/powerplatform-actions/export-solution@v0
         with:
